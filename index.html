@@ -365,6 +365,8 @@ svg.chart{width:100%;height:auto;display:block}
 .chip.chip-add{border-style:dashed;color:var(--muted)}
 
 #topMode[hidden]{display:none!important}
+#topMode button[hidden]{display:none}
+#topMode button{cursor:default}
 
 </style>
 </head>
@@ -402,7 +404,7 @@ svg.chart{width:100%;height:auto;display:block}
     <section class="view" id="v-today">
       <header class="top">
         <div class="row between"><span class="brand">SLOWHEAL · 慢愈</span><button class="me-btn" id="meBtn" type="button">我的</button></div>
-        <div class="mode-switch" role="tablist" id="topMode" hidden><button type="button" data-m="heal" aria-selected="true">失恋疗愈</button><button type="button" data-m="daily" aria-selected="false">慢观自我</button></div>
+        <div class="mode-switch" role="tablist" id="topMode"><button type="button" data-m="heal" aria-selected="true">心愈之旅</button><button type="button" data-m="daily" aria-selected="false">慢观自我</button></div>
         <h1 id="hello">今天也慢慢来。</h1>
         <p class="sub" id="dayline"></p>
       </header>
@@ -572,14 +574,14 @@ svg.chart{width:100%;height:auto;display:block}
         <p id="insight"></p>
       </div>
       <div class="card" id="caseCard">
-        <div class="row between"><span class="label">失恋疗愈档案库</span><button class="btn soft" id="caseNew" type="button">开启新一轮疗愈</button></div>
+        <div class="row between"><span class="label">心愈之旅档案库</span><button class="btn soft" id="caseNew" type="button">开启新一轮疗愈</button></div>
         <p class="hint">每一段感情一份档案，一次只疗愈一段。归档后可以随时回看，不会再打扰你。</p>
         <ul class="list" id="caseList"></ul>
       </div>
       <div class="card">
         <span class="label">使用模式</span>
         <div class="seg" role="tablist" id="modeSeg">
-          <button type="button" data-m="heal" aria-selected="true">失恋疗愈</button>
+          <button type="button" data-m="heal" aria-selected="true">心愈之旅</button>
           <button type="button" data-m="daily" aria-selected="false">慢观自我</button>
         </div>
         <p class="hint" id="modeHint"></p>
@@ -1231,7 +1233,8 @@ svg.chart{width:100%;height:auto;display:block}
     document.querySelectorAll('#topMode button').forEach(b => b.setAttribute('aria-selected', b.dataset.m === MODE() ? 'true' : 'false'));
     const locked = !!activeCase() && !daily;
     document.querySelectorAll('#topMode [data-m="daily"], #modeSeg [data-m="daily"]').forEach(b => { b.textContent = locked ? '🔒 慢观自我' : '慢观自我'; b.classList.toggle('locked', locked); });
-    $('topMode').hidden = true; $('modeSeg').hidden = false;  // 只在「我的」里切换
+    $('topMode').hidden = false; $('modeSeg').hidden = false;  // 今日页只显示当前模式名称，切换在「我的」
+    document.querySelectorAll('#topMode button').forEach(b => { b.hidden = b.dataset.m !== MODE(); });
     $('nextTab').textContent = daily ? '愿望' : '下一任';
     $('wantList').closest('.card').hidden = daily; $('noList').closest('.card').hidden = daily; $('wishCard').hidden = !daily; $('goalCard').hidden = !daily;
     if (daily) renderWishes();
@@ -1258,7 +1261,7 @@ svg.chart{width:100%;height:auto;display:block}
     const prev = MODE(); S.profile.mode = m; applyMode();
     const { error } = await sb.from('profiles').update({ mode: m }).eq('id', U.id);
     if (error) { S.profile.mode = prev; applyMode(); return fail(error); }
-    if (!quiet) toast(m === 'daily' ? '慢观自我，欢迎你' : '回到失恋疗愈，' + (S.contact.name || 'TA') + '的档案都在');
+    if (!quiet) toast(m === 'daily' ? '慢观自我，欢迎你' : '回到心愈之旅，' + (S.contact.name || 'TA') + '的档案都在');
   }
   document.querySelectorAll('#topMode button').forEach(b => b.onclick = () => setMode(b.dataset.m));
   /* 慢观自我：贴纸、题目、彩带 */
