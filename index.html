@@ -362,6 +362,8 @@ svg.chart{width:100%;height:auto;display:block}
 .mode-switch button.locked,.seg button.locked{opacity:.6}
 .lock-ico{font-size:40px;line-height:1}
 
+.chip.chip-add{border-style:dashed;color:var(--muted)}
+
 </style>
 </head>
 <body>
@@ -1047,18 +1049,54 @@ svg.chart{width:100%;height:auto;display:block}
   const QUOTES_DAILY = ['今天也值得被好好过。', '小小的开心，也值得记下来。', '你正在成为更喜欢的自己。', '好事正在慢慢发生。', '把日子过成自己喜欢的样子。', '对自己好一点，是最好的开始。', '你笑起来的样子很好看。', '今天的阳光，是给你的。', '你值得所有温柔的事。', '新的一页，由你来写。'];
   const QUOTES_HEAL = ['今天很难受的话，就只做一件事：好好睡一觉。', '你想念的，可能是那时候的自己，不一定是 TA。', '你不是太敏感，是真的被伤到了。', '放不下也没关系，先放一点点。', '你不需要任何人的回复，才能好好过今天。', '反复想起不是失败，是心在慢慢消化。', '今天没有联系 TA，已经很了不起了。', '你值得一段不用猜、不用忍的关系。', '允许今天比昨天差一点，明天再说。', '变好不是为了让谁后悔，是为了找回自己。'];
   const sel = new Set();
+  const customMoods = () => ((S.profile && Array.isArray(S.profile.custom_moods)) ? S.profile.custom_moods : []);
+  const myMoods = () => customMoods().filter(x => (x.m || 'heal') === MODE());
+  const scoreOf = t => SCORE[t] != null ? SCORE[t] : ((customMoods().find(x => x.t === t) || {}).s || 3);
+  async function saveCustomMoods(list) {
+    const prev = S.profile.custom_moods; S.profile.custom_moods = list; buildMoodChips();
+    const { error } = await sb.from('profiles').update({ custom_moods: list }).eq('id', U.id);
+    if (error) { S.profile.custom_moods = prev; buildMoodChips(); fail(error); return false; }
+    return true;
+  }
+  function customMoodSheet() {
+    let lvl = 3;
+    const mine = myMoods();
+    openSheet('<h2>写下你自己的心情</h2><p class="hint">现在的感觉，用你自己的话来说。</p>' +
+      '<input type="text" id="cmName" maxlength="8" placeholder="例如：有点想哭、松了一口气">' +
+      '<span class="label">这个心情比较像</span><div class="chips" id="cmLvl">' +
+      [['😊 偏开心', 4.5], ['😐 说不上来', 3], ['😢 偏难过', 1.5]].map(([t, v]) => '<button type="button" class="chip" data-v="' + v + '" aria-pressed="' + (v === 3) + '">' + t + '</button>').join('') + '</div>' +
+      '<button class="btn" id="cmGo" type="button">加上这个心情</button>' +
+      (mine.length ? '<span class="label">我写过的心情</span><ul class="list" id="cmList">' + mine.map(x => '<li class="line"><span class="txt">' + esc(x.t) + '</span><button type="button" class="link" data-t="' + esc(x.t) + '">删除</button></li>').join('') + '</ul>' : ''), () => {
+      $('cmLvl').querySelectorAll('button').forEach(b => b.onclick = () => { lvl = +b.dataset.v; $('cmLvl').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); });
+      $('cmGo').onclick = async () => {
+        const t = $('cmName').value.trim(); if (!t) return $('cmName').focus();
+        if (MOODS.some(([m]) => m === t) || myMoods().some(x => x.t === t)) { sel.add(t); buildMoodChips(); closeSheet(); return; }
+        if (myMoods().length >= 12) return toast('最多 12 个，先删掉一个不用的');
+        $('cmGo').disabled = true;
+        if (await saveCustomMoods(customMoods().concat({ t, s: lvl, m: MODE() }))) { sel.add(t); buildMoodChips(); closeSheet(); toast('加好了，以后都可以选'); }
+        else $('cmGo').disabled = false;
+      };
+      if ($('cmList')) $('cmList').querySelectorAll('button').forEach(b => b.onclick = async () => {
+        const t = b.dataset.t; sel.delete(t);
+        if (await saveCustomMoods(customMoods().filter(x => !(x.t === t && (x.m || 'heal') === MODE())))) b.closest('li').remove();
+      });
+      setTimeout(() => { if ($('cmName')) $('cmName').focus(); }, 100);
+    });
+  }
   function buildMoodChips() {
     $('moodChips').innerHTML = '';
-    MOODS.forEach(([m]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (m === '想联系TA' ? ' alert' : ''); b.textContent = m; b.dataset.m = m; b.setAttribute('aria-pressed', 'false');
+    MOODS.concat(myMoods().map(x => [x.t, x.s])).forEach(([m]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (m === '想联系TA' ? ' alert' : ''); b.textContent = m; b.dataset.m = m; b.setAttribute('aria-pressed', sel.has(m) ? 'true' : 'false');
       b.onclick = () => { if (sel.has(m)) sel.delete(m); else { sel.add(m); if (m === '想联系TA') { logEpisode('contact'); openImpulse(); } } b.setAttribute('aria-pressed', sel.has(m) ? 'true' : 'false'); };
       $('moodChips').appendChild(b); });
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'chip chip-add'; add.textContent = '＋ 自己写';
+    add.onclick = customMoodSheet; $('moodChips').appendChild(add);
   }
   buildMoodChips();
   $('saveMood').onclick = async () => {
     const note = $('moodNote').value.trim(), prev = S.moods[TODAY()];
     if (!sel.size && !note) { $('moodSaved').textContent = '选一个心情，或写一句话'; return; }
     const tags = sel.size ? [...sel] : [];
-    const score = tags.length ? Math.round(tags.reduce((a, t) => a + (SCORE[t] || 3), 0) / tags.length * 10) / 10 : (prev ? Number(prev.score) : 3);
+    const score = tags.length ? Math.round(tags.reduce((a, t) => a + scoreOf(t), 0) / tags.length * 10) / 10 : (prev ? Number(prev.score) : 3);
     const entries = moodEntries(prev, TODAY()).concat({ at: new Date().toISOString(), text: note || null, tags }).slice(-50);
     const row = { user_id: U.id, day: TODAY(), tags: tags.length ? tags : ((prev && prev.tags) || []), note: note || (prev && prev.note) || null, score, entries };
     $('saveMood').disabled = true;
@@ -2155,7 +2193,7 @@ svg.chart{width:100%;height:auto;display:block}
     });
     Object.entries(S.moods || {}).forEach(([day, m]) => moodEntries(m, day).forEach(e => {
       const tg = e.tags || []; if (!e.text || !tg.length) return;
-      if (tg.reduce((x, t) => x + (SCORE[t] || 3), 0) / tg.length >= 4) slides.push({ head: tg.join(' · '), text: e.text, at: e.at || day });
+      if (tg.reduce((x, t) => x + scoreOf(t), 0) / tg.length >= 4) slides.push({ head: tg.join(' · '), text: e.text, at: e.at || day });
     }));
     (posts || []).forEach(p => slides.push({ head: '我的生活', text: p.text, images: p.images, at: p.created_at }));
     return slides.filter(x => x.at && !isNaN(new Date(x.at)));
