@@ -359,6 +359,9 @@ svg.chart{width:100%;height:auto;display:block}
 .moment.wish-done .btn{align-self:flex-start}
 .feel.wish-feel::before{content:"我的心愿"}
 
+.mode-switch button.locked,.seg button.locked{opacity:.6}
+.lock-ico{font-size:40px;line-height:1}
+
 </style>
 </head>
 <body>
@@ -1011,6 +1014,7 @@ svg.chart{width:100%;height:auto;display:block}
       syncContact();
     } catch (e) { fail(e, '读取资料失败，请检查网络'); }
     if (S.profile.mode !== 'daily' && !activeCase()) S.profile.mode = 'daily';
+    if (S.profile.mode === 'daily' && activeCase()) S.profile.mode = 'heal';  // 疗愈中：先专心走完这一段
     applyMode(); renderChatHead(); renderLetters(); renderMe(); renderCases();
     loadFeed(true);
     await maybeLock();
@@ -1185,6 +1189,8 @@ svg.chart{width:100%;height:auto;display:block}
     const gBtn = document.querySelector('#circleSeg [data-c="goals"]'); gBtn.hidden = !daily;
     if (!daily && gBtn.getAttribute('aria-selected') === 'true') document.querySelector('#circleSeg [data-c="feed"]').click();
     document.querySelectorAll('#topMode button').forEach(b => b.setAttribute('aria-selected', b.dataset.m === MODE() ? 'true' : 'false'));
+    const locked = !!activeCase() && !daily;
+    document.querySelectorAll('#topMode [data-m="daily"], #modeSeg [data-m="daily"]').forEach(b => { b.textContent = locked ? '🔒 慢观自我' : '慢观自我'; b.classList.toggle('locked', locked); });
     $('nextTab').textContent = daily ? '愿望' : '下一任';
     $('wantList').closest('.card').hidden = daily; $('noList').closest('.card').hidden = daily; $('wishCard').hidden = !daily; $('goalCard').hidden = !daily;
     if (daily) renderWishes();
@@ -1193,12 +1199,20 @@ svg.chart{width:100%;height:auto;display:block}
     $('wantLabel').textContent = daily ? '我希望身边的人' : '我希望下一任';
     $('noLabel').textContent = daily ? '我不再接受' : '我绝不再接受';
     document.querySelectorAll('#modeSeg button').forEach(b => b.setAttribute('aria-selected', b.dataset.m === MODE() ? 'true' : 'false'));
-    $('modeHint').textContent = daily ? '记录开心、好笑的小事，喜欢上现在的自己。随时可以切回失恋疗愈，之前写的都还在。' : '陪你度过失恋、吵架和放不下的时候。好起来以后，可以切到「慢观自我」。今日页最上面也可以随时切换。';
+    $('modeHint').textContent = daily ? '记录开心、好笑的小事，喜欢上现在的自己。如果又遇到难过的事，可以再开启新一轮疗愈。' : (activeCase() ? '先专心走完这一段。等你好起来，归档这段关系，「慢观自我」就会为你打开。' : '陪你度过失恋、吵架和放不下的时候。');
     if (daily && !$('v-chat').hidden) go('today');
     renderToday(); renderHeart();
   }
+  function lockSheet() {
+    openSheet('<div class="celebrate"><div class="lock-ico">🔒</div><h2>先专心照顾好自己</h2>' +
+      '<p>「慢观自我」是留给走出来以后的你的。</p><p>现在先专心走完这一段。等你觉得自己好起来了，归档这段关系，「慢观自我」就会为你打开。</p>' +
+      '<div class="stack-btns"><button class="btn ghost" data-close type="button">好，我再陪自己走一段</button><button class="link" id="lkGo" type="button">我已经走出来了，归档这段关系</button></div></div>', () => {
+      $('lkGo').onclick = () => archiveSheet();
+    });
+  }
   async function setMode(m, quiet) {
     if (m === 'heal' && !activeCase()) { applyMode(); return newCaseSheet(); }
+    if (m === 'daily' && activeCase() && !quiet) { applyMode(); return lockSheet(); }
     if (m === MODE()) return;
     const prev = MODE(); S.profile.mode = m; applyMode();
     const { error } = await sb.from('profiles').update({ mode: m }).eq('id', U.id);
