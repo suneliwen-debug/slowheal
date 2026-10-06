@@ -368,6 +368,41 @@ svg.chart{width:100%;height:auto;display:block}
 #topMode button[hidden]{display:none}
 #topMode button{cursor:default}
 
+/* ===== 猫伴 ===== */
+.top-row{position:relative}
+.cat-btn{position:absolute;right:0;top:calc(100% + 8px);display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:color-mix(in srgb,var(--mist-soft) 70%,transparent);color:var(--muted);border-radius:12px;padding:3px 10px 3px 7px;font-size:12px;cursor:pointer;transition:transform .15s,background .15s;z-index:2}
+.cat-btn svg{width:16px;height:16px}
+.cat-btn:active{transform:scale(1.08);background:var(--mist-soft)}
+.cat-view{position:fixed;inset:0;z-index:70;background:linear-gradient(180deg,#FBF7F2 0%,#F4EFF8 100%);overflow-y:auto;animation:catIn .35s ease}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cat-view{background:linear-gradient(180deg,#221F2B,#1A1822)}}
+:root[data-theme="dark"] .cat-view{background:linear-gradient(180deg,#221F2B,#1A1822)}
+@keyframes catIn{from{opacity:0}to{opacity:1}}
+.cat-inner{max-width:480px;margin:0 auto;min-height:100%;padding:calc(28px + env(safe-area-inset-top,0px)) 20px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:18px}
+.cat-intro{text-align:center;font-family:var(--serif);font-size:16px;line-height:1.9;color:var(--ink);margin:8px 0 0}
+.cat-stage{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;touch-action:none;user-select:none;-webkit-user-select:none}
+.cat-svg{width:100%;max-width:340px;cursor:grab;overflow:visible}
+.cat-body{transform-origin:170px 206px;animation:catBreath 4s ease-in-out infinite}
+.cat-stage.calm .cat-body{animation-duration:6s}
+@keyframes catBreath{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.025)}}
+.cat-head{transform-origin:106px 170px;transition:transform .6s ease}
+.cat-stage.sad .cat-head{transform:translateY(-8px) rotate(-5deg)}
+.cat-stage.pet .cat-head{transition:transform .35s ease}
+.cat-tail{transform-origin:276px 186px;animation:catTail 5s ease-in-out infinite}
+@keyframes catTail{0%,100%{transform:rotate(0)}50%{transform:rotate(-3deg)}}
+.eyes-open{opacity:0;transition:opacity .4s}.eyes-closed{transition:opacity .4s}
+.cat-stage.sad .eyes-open,.cat-stage.look .eyes-open{opacity:1}.cat-stage.sad .eyes-closed,.cat-stage.look .eyes-closed{opacity:0}
+.cat-stage.pet .eyes-open{opacity:0}.cat-stage.pet .eyes-closed{opacity:1}
+.cat-stage.blink .eyes-open{opacity:0}.cat-stage.blink .eyes-closed{opacity:1}
+.cat-say{position:absolute;top:12%;left:50%;transform:translateX(-50%);width:min(320px,92%);text-align:center;font-size:14px;font-weight:300;color:var(--mist);opacity:0;transition:opacity 1s ease;pointer-events:none;line-height:1.7}
+.cat-say.on{opacity:1}
+.cat-hint{font-size:12px;color:var(--muted);margin:6px 0 0;transition:opacity .6s}
+.cat-floats{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.cat-bubble{position:absolute;right:6%;top:30%;max-width:60%;background:var(--card);color:var(--ink);font-size:13px;padding:8px 12px;border-radius:16px 16px 16px 4px;box-shadow:0 6px 20px rgba(80,60,120,.12);animation:catFloat 5s ease forwards;word-break:break-word}
+@keyframes catFloat{0%{opacity:0;transform:translateY(10px)}12%{opacity:1;transform:translateY(0)}75%{opacity:1}100%{opacity:0;transform:translateY(-60px)}}
+.cat-talk{display:flex;gap:8px}.cat-talk input{flex:1;min-width:0}
+.cat-back{align-self:center;min-width:160px}
+@media (prefers-reduced-motion: reduce){.cat-body,.cat-tail{animation:none}.cat-bubble{animation-duration:.01s}}
+
 </style>
 </head>
 <body>
@@ -403,7 +438,7 @@ svg.chart{width:100%;height:auto;display:block}
     <!-- 今日 -->
     <section class="view" id="v-today">
       <header class="top">
-        <div class="row between"><span class="brand">SLOWHEAL · 慢愈</span><button class="me-btn" id="meBtn" type="button">我的</button></div>
+        <div class="row between top-row"><span class="brand">SLOWHEAL · 慢愈</span><button class="me-btn" id="meBtn" type="button">我的</button><button class="cat-btn" id="catBtn" type="button" aria-label="猫伴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9 4.5 3.5 9 6.5h6l4.5-3L19 9c1 1.3 1.5 2.8 1.5 4.5C20.5 18 16.6 21 12 21s-8.5-3-8.5-7.5C3.5 11.8 4 10.3 5 9z"/><path d="M8.5 13.2q1 .8 2 0M13.5 13.2q1 .8 2 0M11.3 16h1.4l-.7.7z"/></svg>猫伴</button></div>
         <div class="mode-switch" role="tablist" id="topMode"><button type="button" data-m="heal" aria-selected="true">心愈之旅</button><button type="button" data-m="daily" aria-selected="false">慢观自我</button></div>
         <h1 id="hello">今天也慢慢来。</h1>
         <p class="sub" id="dayline"></p>
@@ -632,6 +667,39 @@ svg.chart{width:100%;height:auto;display:block}
   </div>
 </div>
 <div class="sheet-bg" id="sheetBg" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="cat-view" id="catView" hidden role="dialog" aria-modal="true" aria-label="猫伴">
+  <div class="cat-inner">
+    <p class="cat-intro">来摸摸小猫吧。<br>它不会评判你的眼泪，也不会催你快点好起来。<br>你可以把所有委屈，悄悄说给它听。</p>
+    <div class="cat-stage" id="catStage">
+      <div class="cat-say" id="catSay" aria-live="polite"></div>
+      <div class="cat-floats" id="catFloats"></div>
+      <svg class="cat-svg" id="catSvg" viewBox="0 0 320 240" aria-label="一只趴着的小猫，可以摸摸它">
+        <ellipse cx="165" cy="214" rx="120" ry="10" fill="#000" opacity=".06"/>
+        <g class="cat-body">
+          <path d="M70 200 C55 140 120 105 185 108 C255 110 290 150 280 196 Q278 206 266 206 L84 206 Q72 206 70 200Z" fill="#F6CFA6"/>
+          <path d="M200 112 q6 18 0 34 M228 118 q8 18 2 34 M252 132 q8 16 4 30" stroke="#EBAE7C" stroke-width="7" stroke-linecap="round" fill="none"/>
+          <path class="cat-tail" d="M276 186 C300 214 240 226 170 220 C130 217 110 214 104 206" stroke="#EBAE7C" stroke-width="20" stroke-linecap="round" fill="none"/>
+          <ellipse cx="120" cy="204" rx="20" ry="9" fill="#FBE3CB"/><ellipse cx="160" cy="206" rx="18" ry="8" fill="#FBE3CB"/>
+        </g>
+        <g class="cat-head" id="catHead">
+          <path d="M62 112 L58 62 L96 88Z" fill="#F6CFA6"/><path d="M68 102 L66 74 L88 90Z" fill="#F3B4B4"/>
+          <path d="M150 112 L156 62 L118 88Z" fill="#F6CFA6"/><path d="M144 102 L148 74 L126 90Z" fill="#F3B4B4"/>
+          <ellipse cx="106" cy="128" rx="54" ry="46" fill="#F6CFA6"/>
+          <path d="M96 86 v10 M106 84 v12 M116 86 v10" stroke="#EBAE7C" stroke-width="5" stroke-linecap="round"/>
+          <ellipse cx="72" cy="142" rx="10" ry="6" fill="#F3B4B4" opacity=".55"/><ellipse cx="140" cy="142" rx="10" ry="6" fill="#F3B4B4" opacity=".55"/>
+          <g class="eyes-closed" stroke="#6B4A3A" stroke-width="3.2" stroke-linecap="round" fill="none"><path d="M78 128 q9 7 18 0"/><path d="M116 128 q9 7 18 0"/></g>
+          <g class="eyes-open" fill="#4A3A33"><ellipse cx="87" cy="127" rx="5.5" ry="7"/><ellipse cx="125" cy="127" rx="5.5" ry="7"/><circle cx="89" cy="124" r="1.8" fill="#fff"/><circle cx="127" cy="124" r="1.8" fill="#fff"/></g>
+          <path d="M102 140 h8 l-4 4z" fill="#E98B93"/>
+          <path d="M106 144 q-4 6 -9 3 M106 144 q4 6 9 3" stroke="#6B4A3A" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M60 140 h-22 M60 147 l-20 5 M152 140 h22 M152 147 l20 5" stroke="#C9A58A" stroke-width="1.6" stroke-linecap="round"/>
+        </g>
+      </svg>
+      <p class="cat-hint" id="catHint">用手指轻轻摸摸它</p>
+    </div>
+    <div class="cat-talk"><input type="text" id="catIn" maxlength="80" placeholder="悄悄和小猫说说话（可选）"><button class="btn soft" id="catSend" type="button">说给它听</button></div>
+    <button class="btn cat-back" id="catBack" type="button">回到今日</button>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" hidden></div>
 
 
@@ -1832,6 +1900,89 @@ svg.chart{width:100%;height:auto;display:block}
       };
     });
   }
+
+  /* ================= 猫伴 ================= */
+  const CAT_SAD = ['咕噜噜…我在这里陪着你。', '不用硬撑，难过可以留下来。', '摸摸头，你的眼泪我接住啦。', '慢慢来，不用急着好起来。', '你已经很努力了，休息一下吧。', '心里沉甸甸的话，可以讲给我听。'];
+  const CAT_CALM = ['咕噜噜～你今天有在好好照顾自己。', '风慢慢变柔和啦，一切都会松弛下来。', '真好，看见你慢慢平静下来。', '继续保持这份温柔，给自己。', '你正在一点点复原哦。', '安心，你值得被好好对待。'];
+  const CAT_ANY = ['摸摸小猫，喘口气。', '不用回答，静静待一会儿就好。', '我会安静陪着你。'];
+  const Purr = (() => {
+    let ctx, g, src, lfo, on = false;
+    function start() {
+      try {
+        ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended') ctx.resume();
+        if (on) return; on = true;
+        const len = ctx.sampleRate * 2, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+        let last = 0; for (let i = 0; i < len; i++) { last = (last + 0.04 * (Math.random() * 2 - 1)) / 1.04; d[i] = last * 3.5; }
+        src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220;
+        const amp = ctx.createGain(); amp.gain.value = 0.5;
+        lfo = ctx.createOscillator(); lfo.frequency.value = 24; const lg = ctx.createGain(); lg.gain.value = 0.5; lfo.connect(lg); lg.connect(amp.gain);
+        g = ctx.createGain(); g.gain.value = 0;
+        src.connect(lp); lp.connect(amp); amp.connect(g); g.connect(ctx.destination);
+        src.start(); lfo.start();
+        g.gain.linearRampToValueAtTime(0.09, ctx.currentTime + 0.8);
+      } catch (e) { on = false; }
+    }
+    function stop() {
+      if (!on || !ctx) return; on = false;
+      const gg = g, ss = src, ll = lfo;
+      gg.gain.cancelScheduledValues(ctx.currentTime); gg.gain.setValueAtTime(gg.gain.value, ctx.currentTime); gg.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.2);
+      setTimeout(() => { try { ss.stop(); ll.stop(); } catch (e) {} }, 1400);
+    }
+    return { start, stop };
+  })();
+  function catMood() {
+    const m = S.moods[TODAY()]; if (!m) return 'none';
+    const es = moodEntries(m, TODAY()); const last = es.length ? es[es.length - 1] : null;
+    const tags = (last && last.tags && last.tags.length) ? last.tags : (m.tags || []);
+    if (!tags.length) return 'none';
+    const sc = tags.reduce((a, t) => a + scoreOf(t), 0) / tags.length;
+    return sc < 3 ? 'sad' : sc >= 3.5 ? 'calm' : 'none';
+  }
+  let catSayT = 0, catLast = '', catStopT = 0, catBlinkT = 0;
+  function catLine() {
+    const md = catMood(), pool = (md === 'sad' ? CAT_SAD : md === 'calm' ? CAT_CALM : CAT_SAD.slice(0, 2).concat(CAT_CALM.slice(0, 2))).concat(CAT_ANY);
+    let t; do { t = pool[Math.floor(Math.random() * pool.length)]; } while (t === catLast && pool.length > 1);
+    return (catLast = t);
+  }
+  function catSay() {
+    const now = Date.now(); if (now - catSayT < 4200) return; catSayT = now;
+    const el = $('catSay'); el.textContent = catLine(); el.classList.add('on');
+    clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 2800);
+  }
+  function catBlink() { const st = $('catStage'); st.classList.add('blink'); clearTimeout(catBlinkT); catBlinkT = setTimeout(() => st.classList.remove('blink'), 260); }
+  function openCat() {
+    const st = $('catStage'), md = catMood();
+    st.className = 'cat-stage' + (md === 'sad' ? ' sad' : md === 'calm' ? ' calm' : '');
+    $('catHint').style.opacity = 1; $('catSay').classList.remove('on'); $('catFloats').innerHTML = '';
+    $('catView').hidden = false; document.body.style.overflow = 'hidden';
+  }
+  function closeCat() { Purr.stop(); $('catView').hidden = true; document.body.style.overflow = ''; }
+  (() => {
+    const st = $('catStage'), head = $('catHead'), svg = $('catSvg');
+    let petting = false;
+    const lean = e => {
+      const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.33, y = (e.clientY - r.top) / r.height - 0.5;
+      head.style.transform = 'translate(' + Math.max(-10, Math.min(10, x * 30)) + 'px,' + Math.max(-8, Math.min(6, y * 16)) + 'px) rotate(' + Math.max(-10, Math.min(10, x * 22)) + 'deg)';
+    };
+    const down = e => { petting = true; clearTimeout(catStopT); st.classList.add('pet'); $('catHint').style.opacity = 0; Purr.start(); lean(e); catSay(); };
+    const move = e => { if (!petting) return; lean(e); catSay(); };
+    const up = () => { if (!petting) return; petting = false; catStopT = setTimeout(() => { st.classList.remove('pet'); head.style.transform = ''; Purr.stop(); }, 900); };
+    svg.addEventListener('pointerdown', e => { try { svg.setPointerCapture(e.pointerId); } catch (x) {} down(e); });
+    svg.addEventListener('pointermove', move);
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => svg.addEventListener(t, up));
+  })();
+  $('catSend').onclick = () => {
+    const t = $('catIn').value.trim(); if (!t) return $('catIn').focus();
+    const b = document.createElement('div'); b.className = 'cat-bubble'; b.textContent = t;
+    $('catFloats').appendChild(b); setTimeout(() => b.remove(), 5200);
+    $('catIn').value = ''; setTimeout(catBlink, 700); setTimeout(catBlink, 1100);
+    setTimeout(() => { catSayT = 0; const el = $('catSay'); el.textContent = catMood() === 'calm' ? '咕噜噜～我听到了。' : '咕噜噜…我听到了，谢谢你告诉我。'; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 2800); }, 1500);
+  };
+  $('catIn').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('catSend').click(); } });
+  $('catBtn').onclick = openCat;
+  $('catBack').onclick = () => { closeCat(); go('today'); };
   $('sosBtn').onclick = openSOS;
   let lastCheer = '';
   function cheer() {
