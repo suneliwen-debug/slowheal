@@ -1956,7 +1956,7 @@ svg.chart{width:100%;height:auto;display:block}
       gg.gain.cancelScheduledValues(ctx.currentTime); gg.gain.setValueAtTime(gg.gain.value, ctx.currentTime); gg.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
       setTimeout(() => { try { ss.stop(); ll.stop(); } catch (e) {} }, 1200);
     }
-    return { soft: () => start(0.08), loud: () => start(0.2), stop };
+    return { soft: () => start(0.12), loud: () => start(0.36), stop };
   })();
   function catMood() {
     let tags = [...sel];
