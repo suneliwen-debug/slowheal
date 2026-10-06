@@ -1430,6 +1430,23 @@ svg.chart{width:100%;height:auto;display:block}
       if (first) toast('留在这里了，不会发出去');
     } catch (err) { fail(err); } finally { $('chatSend').disabled = false; }
   });
+  async function saveAvatar(blob) {
+    const c = S.contact; let cs = activeCase();
+    const avatar = (await uploadBlobs([blob]))[0];
+    if (!cs) { cs = await createCase(c.name || 'TA', { avatar }); if (!cs) throw new Error('case'); }
+    else { const { error } = await sb.from('cases').update({ avatar }).eq('id', cs.id); if (error) throw error; if (cs.avatar && cs.avatar !== avatar) removeFiles([cs.avatar]); cs.avatar = avatar; }
+    syncContact(); renderChatHead(); renderCases();
+  }
+  $('chatAva').style.cursor = 'pointer'; $('chatAva').title = '点一下换头像';
+  $('chatAva').onclick = () => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      try { const blob = await compress(f, 512); if (!blob) throw new Error('img'); await saveAvatar(blob); toast('头像换好了'); }
+      catch (e) { fail(e, '这张图片读取不了，换一张试试'); }
+    };
+    inp.click();
+  };
   $('chatSet').onclick = async () => {
     const c = S.contact; let style = c.style || 'green', newAva = null;
     const cur = await contactAvatarURL();
@@ -1441,7 +1458,7 @@ svg.chart{width:100%;height:auto;display:block}
       STYLES.map(s => '<button type="button" data-s="' + s[0] + '" aria-pressed="' + (s[0] === style) + '"><span class="swatch" style="background:' + s[2] + '"><i style="background:' + s[3] + '"></i></span>' + s[1] + '</button>').join('') +
       '</div><button class="btn" id="setSave" type="button">保存</button>', () => {
       $('stylePick').querySelectorAll('button').forEach(b => b.onclick = () => { style = b.dataset.s; $('stylePick').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); });
-      $('setAvaFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; newAva = await compress(f, 512); if (newAva) $('setAva').src = URL.createObjectURL(newAva); };
+      $('setAvaFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { newAva = await compress(f, 512); if (!newAva) throw new Error('img'); $('setAva').src = URL.createObjectURL(newAva); toast('按下面「保存」就换好了'); } catch (err) { newAva = null; fail(err, '这张图片读取不了，换一张试试'); } };
       $('setSave').onclick = async () => {
         $('setSave').disabled = true;
         try {
