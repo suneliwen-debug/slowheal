@@ -1984,7 +1984,6 @@ svg.chart{width:100%;height:auto;display:block}
     $('catHint').style.opacity = 1; $('catSay').classList.remove('on'); $('catFloats').innerHTML = '';
     $('catView').hidden = false; document.body.style.overflow = 'hidden';
     if (md === 'sad') { st.classList.remove('sad'); void st.offsetWidth; setTimeout(() => st.classList.add('sad'), 350); }
-    Purr.soft();
   }
   function closeCat() { Purr.stop(); $('catView').hidden = true; document.body.style.overflow = ''; }
   (() => {
@@ -1996,7 +1995,7 @@ svg.chart{width:100%;height:auto;display:block}
     };
     const down = e => { petting = true; clearTimeout(catStopT); st.classList.add('pet'); $('catHint').style.opacity = 0; Purr.loud(); lean(e); setTimeout(catSay, 900); };
     const move = e => { if (!petting) return; lean(e); if (Date.now() - catSayT > 4200) setTimeout(catSay, 600); };
-    const up = () => { if (!petting) return; petting = false; catStopT = setTimeout(() => { st.classList.remove('pet'); head.style.transform = ''; if (!$('catView').hidden) Purr.soft(); }, 900); };
+    const up = () => { if (!petting) return; petting = false; catStopT = setTimeout(() => { st.classList.remove('pet'); head.style.transform = ''; Purr.stop(); }, 900); };
     svg.addEventListener('pointerdown', e => { try { svg.setPointerCapture(e.pointerId); } catch (x) {} down(e); });
     svg.addEventListener('pointermove', move);
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => svg.addEventListener(t, up));
