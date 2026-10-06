@@ -364,6 +364,8 @@ svg.chart{width:100%;height:auto;display:block}
 
 .chip.chip-add{border-style:dashed;color:var(--muted)}
 
+#topMode[hidden]{display:none!important}
+
 </style>
 </head>
 <body>
@@ -400,7 +402,7 @@ svg.chart{width:100%;height:auto;display:block}
     <section class="view" id="v-today">
       <header class="top">
         <div class="row between"><span class="brand">SLOWHEAL · 慢愈</span><button class="me-btn" id="meBtn" type="button">我的</button></div>
-        <div class="mode-switch" role="tablist" id="topMode"><button type="button" data-m="heal" aria-selected="true">失恋疗愈</button><button type="button" data-m="daily" aria-selected="false">慢观自我</button></div>
+        <div class="mode-switch" role="tablist" id="topMode" hidden><button type="button" data-m="heal" aria-selected="true">失恋疗愈</button><button type="button" data-m="daily" aria-selected="false">慢观自我</button></div>
         <h1 id="hello">今天也慢慢来。</h1>
         <p class="sub" id="dayline"></p>
       </header>
@@ -1229,6 +1231,7 @@ svg.chart{width:100%;height:auto;display:block}
     document.querySelectorAll('#topMode button').forEach(b => b.setAttribute('aria-selected', b.dataset.m === MODE() ? 'true' : 'false'));
     const locked = !!activeCase() && !daily;
     document.querySelectorAll('#topMode [data-m="daily"], #modeSeg [data-m="daily"]').forEach(b => { b.textContent = locked ? '🔒 慢观自我' : '慢观自我'; b.classList.toggle('locked', locked); });
+    $('topMode').hidden = true; $('modeSeg').hidden = false;  // 只在「我的」里切换
     $('nextTab').textContent = daily ? '愿望' : '下一任';
     $('wantList').closest('.card').hidden = daily; $('noList').closest('.card').hidden = daily; $('wishCard').hidden = !daily; $('goalCard').hidden = !daily;
     if (daily) renderWishes();
