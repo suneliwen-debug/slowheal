@@ -879,6 +879,16 @@ svg.chart{width:100%;height:auto;display:block}
 </script>
 <script>
 /* SlowHeal 慢愈 — app logic (Supabase backend) */
+/* 手机 Chrome 被切成「电脑版网站」时（或折叠屏自动切换），页面会缩得很小：自动放大回手机大小 */
+(function () {
+  function fit() {
+    var sw = window.screen && screen.width, iw = window.innerWidth;
+    if (!sw || !iw) return;
+    var r = iw / sw, phone = Math.min(screen.width, screen.height) <= 820;
+    document.documentElement.style.zoom = (phone && r > 1.25) ? String(Math.min(r, 4)) : '';
+  }
+  fit(); window.addEventListener('resize', fit); window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
+})();
 (function () {
   'use strict';
 
