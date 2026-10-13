@@ -1,0 +1,364 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>复制资料库脚本</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;margin:0;padding:16px;background:#F8F5F6;color:#2F2B3D}button{font:inherit;font-weight:700;background:#8F86C2;color:#fff;border:0;border-radius:999px;padding:14px 22px;width:100%;margin:10px 0}a{color:#8F86C2;font-weight:700}textarea{width:100%;height:40vh;font:12px monospace;border-radius:12px;border:1px solid #ddd;padding:8px;box-sizing:border-box}</style></head><body>
+<h2>第 1 步：复制</h2><button id="c">一键复制全部</button><p id="m"></p>
+<h2>第 2 步：贴到 Supabase</h2><p>打开 <a href="https://supabase.com/dashboard/project/cifmhterprkxogmdtula/sql/new" target="_blank">Supabase SQL Editor（slowheal）</a>，在空白处长按 › 贴上 › 按右下角 <b>Run</b>。</p>
+<textarea id="t" readonly>-- ============================================================
+-- SlowHeal 慢愈 · 数据库脚本
+-- 用法：Supabase 项目 › SQL Editor › New query › 全部贴进来 › Run
+-- 可以重复运行
+-- ============================================================
+
+-- ---------- 用户资料 ----------
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  nickname text not null default &#x27;匿名&#x27; check (char_length(nickname) between 1 and 20),
+  mode text not null default &#x27;heal&#x27; check (mode in (&#x27;heal&#x27;,&#x27;daily&#x27;)),
+  created_at timestamptz not null default now()
+);
+
+-- 旧版升级用：补上模式栏位
+alter table public.profiles add column if not exists mode text not null default &#x27;heal&#x27;;
+alter table public.profiles add column if not exists care jsonb;
+alter table public.profiles add column if not exists custom_moods jsonb not null default &#x27;[]&#x27;::jsonb;
+alter table public.profiles drop constraint if exists profiles_care_check;
+alter table public.profiles add constraint profiles_care_check check (care is null or (jsonb_typeof(care) = &#x27;array&#x27; and jsonb_array_length(care) &lt;= 5));
+alter table public.profiles drop constraint if exists profiles_mode_check;
+alter table public.profiles add constraint profiles_mode_check check (mode in (&#x27;heal&#x27;,&#x27;daily&#x27;));
+
+-- 注册时自动建资料
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = &#x27;&#x27; as $$
+begin
+  insert into public.profiles (id, nickname)
+  values (new.id, left(coalesce(nullif(trim(new.raw_user_meta_data-&gt;&gt;&#x27;nickname&#x27;), &#x27;&#x27;), nullif(trim(new.raw_user_meta_data-&gt;&gt;&#x27;full_name&#x27;), &#x27;&#x27;), nullif(trim(new.raw_user_meta_data-&gt;&gt;&#x27;name&#x27;), &#x27;&#x27;), &#x27;匿名&#x27;), 20))
+  on conflict (id) do nothing;
+  return new;
+end $$;
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ---------- 私人：情绪打卡 ----------
+create table if not exists public.moods (
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  day date not null,
+  tags text[] not null default &#x27;{}&#x27;,
+  note text check (char_length(note) &lt;= 500),
+  score numeric(3,1) not null,
+  primary key (user_id, day)
+);
+
+-- ---------- 私人：照顾自己打卡 ----------
+alter table public.moods add column if not exists entries jsonb not null default &#x27;[]&#x27;;
+alter table public.moods drop constraint if exists moods_entries_check;
+alter table public.moods add constraint moods_entries_check check (jsonb_typeof(entries) = &#x27;array&#x27; and jsonb_array_length(entries) &lt;= 50);
+
+create table if not exists public.checkins (
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  day date not null,
+  items int[] not null default &#x27;{}&#x27;,
+  primary key (user_id, day)
+);
+
+-- ---------- 私人：心事记录 ----------
+-- kind: moment = 截图+感受 · reason = 不合适的理由 · want = 期待 · no = 不再接受 · joy = 开心的事 · selflove = 喜欢自己的地方 · goal = 目标显化 · wish = 生活愿望清单（慢观自我） · boundary = 旧版边界清单
+create table if not exists public.records (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  kind text not null,
+  text text check (char_length(text) &lt;= 3000),
+  images text[] not null default &#x27;{}&#x27;,
+  created_at timestamptz not null default now()
+);
+alter table public.records drop constraint if exists records_kind_check;
+alter table public.records add constraint records_kind_check check (kind in (&#x27;moment&#x27;,&#x27;reason&#x27;,&#x27;boundary&#x27;,&#x27;want&#x27;,&#x27;no&#x27;,&#x27;joy&#x27;,&#x27;selflove&#x27;,&#x27;goal&#x27;,&#x27;wish&#x27;));
+alter table public.records add column if not exists starred boolean not null default false;
+alter table public.records add column if not exists tag text check (char_length(tag) &lt;= 20);
+create index if not exists records_user_idx on public.records (user_id, created_at desc);
+
+-- ---------- 私人：发给他（只存在这里，不会发出） ----------
+create table if not exists public.chat_contact (
+  user_id uuid primary key references public.profiles(id) on delete cascade default auth.uid(),
+  name text not null default &#x27;TA&#x27; check (char_length(name) between 1 and 30),
+  avatar text,
+  style text not null default &#x27;green&#x27; check (style in (&#x27;green&#x27;,&#x27;paper&#x27;,&#x27;gradient&#x27;,&#x27;sky&#x27;))
+);
+alter table public.chat_contact add column if not exists blur boolean not null default false;
+
+-- ---------- 私人：冲动登记 / 情绪反扑日志 ----------
+-- kind: peek = 想去看TA动态 · contact = 想联系TA · relapse = 情绪反扑
+create table if not exists public.episodes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  kind text not null check (kind in (&#x27;peek&#x27;,&#x27;contact&#x27;,&#x27;relapse&#x27;)),
+  intensity int check (intensity between 1 and 10),
+  trigger text check (char_length(trigger) &lt;= 300),
+  thought text check (char_length(thought) &lt;= 1000),
+  created_at timestamptz not null default now()
+);
+create index if not exists episodes_user_idx on public.episodes (user_id, created_at desc);
+
+-- ---------- 私人：时间胶囊 ----------
+create table if not exists public.capsules (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  text text not null check (char_length(text) between 1 and 5000),
+  unlock_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists capsules_user_idx on public.capsules (user_id, unlock_at);
+create table if not exists public.letters (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  text text check (char_length(text) &lt;= 3000),
+  images text[] not null default &#x27;{}&#x27;,
+  created_at timestamptz not null default now(),
+  check (coalesce(char_length(text),0) &gt; 0 or cardinality(images) &gt; 0)
+);
+create index if not exists letters_user_idx on public.letters (user_id, created_at);
+
+-- ---------- 私人：疗愈档案（每段感情一份，同一时间只能有一份进行中） ----------
+create table if not exists public.cases (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  name text not null default &#x27;TA&#x27; check (char_length(name) between 1 and 30),
+  avatar text,
+  style text not null default &#x27;green&#x27; check (style in (&#x27;green&#x27;,&#x27;paper&#x27;,&#x27;gradient&#x27;,&#x27;sky&#x27;)),
+  blur boolean not null default false,
+  status text not null default &#x27;active&#x27; check (status in (&#x27;active&#x27;,&#x27;archived&#x27;)),
+  started_at timestamptz not null default now(),
+  archived_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists cases_one_active on public.cases (user_id) where status = &#x27;active&#x27;;
+create index if not exists cases_user_idx on public.cases (user_id, started_at);
+alter table public.records  add column if not exists case_id uuid references public.cases(id) on delete cascade;
+alter table public.letters  add column if not exists case_id uuid references public.cases(id) on delete cascade;
+alter table public.episodes add column if not exists case_id uuid references public.cases(id) on delete cascade;
+create index if not exists records_case_idx on public.records (case_id);
+create index if not exists letters_case_idx on public.letters (case_id);
+create index if not exists episodes_case_idx on public.episodes (case_id);
+
+-- ---------- 夸夸圈 ----------
+create table if not exists public.posts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  text text check (char_length(text) &lt;= 1000),
+  images text[] not null default &#x27;{}&#x27;,
+  is_public boolean not null default true,
+  hidden boolean not null default false,
+  created_at timestamptz not null default now(),
+  check (coalesce(char_length(text),0) &gt; 0 or cardinality(images) &gt; 0)
+);
+alter table public.posts add column if not exists circle text not null default &#x27;heal&#x27;;
+alter table public.posts drop constraint if exists posts_circle_check;
+alter table public.posts add constraint posts_circle_check check (circle in (&#x27;heal&#x27;,&#x27;daily&#x27;));
+create index if not exists posts_circle_idx on public.posts (circle, created_at desc) where is_public and not hidden;
+create index if not exists posts_feed_idx on public.posts (created_at desc) where is_public and not hidden;
+create index if not exists posts_user_idx on public.posts (user_id, created_at desc);
+
+create table if not exists public.cheers (
+  post_id uuid not null references public.posts(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+create index if not exists cheers_user_idx on public.cheers (user_id);
+
+create table if not exists public.comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.posts(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  text text not null check (char_length(text) between 1 and 300),
+  hidden boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists comments_post_idx on public.comments (post_id, created_at);
+create index if not exists comments_user_idx on public.comments (user_id);
+
+-- ---------- 举报 / 屏蔽 ----------
+create table if not exists public.reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  post_id uuid references public.posts(id) on delete cascade,
+  comment_id uuid references public.comments(id) on delete cascade,
+  reason text not null check (char_length(reason) &lt;= 200),
+  created_at timestamptz not null default now(),
+  check (post_id is not null or comment_id is not null)
+);
+create unique index if not exists reports_once_post on public.reports (reporter, post_id) where post_id is not null;
+create unique index if not exists reports_once_comment on public.reports (reporter, comment_id) where comment_id is not null;
+create index if not exists reports_post_idx on public.reports (post_id);
+create index if not exists reports_comment_idx on public.reports (comment_id);
+
+create table if not exists public.blocks (
+  blocker uuid not null references public.profiles(id) on delete cascade default auth.uid(),
+  blocked uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker, blocked),
+  check (blocker &lt;&gt; blocked)
+);
+create index if not exists blocks_blocked_idx on public.blocks (blocked);
+
+-- 被 3 个不同的人举报就自动隐藏，等你在后台检查
+create or replace function public.auto_hide_reported()
+returns trigger language plpgsql security definer set search_path = &#x27;&#x27; as $$
+begin
+  if new.post_id is not null and (select count(*) from public.reports where post_id = new.post_id) &gt;= 3 then
+    update public.posts set hidden = true where id = new.post_id;
+  end if;
+  if new.comment_id is not null and (select count(*) from public.reports where comment_id = new.comment_id) &gt;= 3 then
+    update public.comments set hidden = true where id = new.comment_id;
+  end if;
+  return new;
+end $$;
+drop trigger if exists on_report on public.reports;
+create trigger on_report after insert on public.reports
+  for each row execute function public.auto_hide_reported();
+
+-- 删除自己的账号（Google Play 要求能在 App 内删除账号）
+create or replace function public.delete_my_account()
+returns void language plpgsql security definer set search_path = &#x27;&#x27; as $$
+begin
+  if auth.uid() is null then raise exception &#x27;not signed in&#x27;; end if;
+  delete from auth.users where id = auth.uid();
+end $$;
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+revoke all on function public.auto_hide_reported() from public, anon, authenticated;
+
+-- ============================================================
+-- 权限（RLS）
+-- ============================================================
+alter table public.profiles enable row level security;
+alter table public.moods    enable row level security;
+alter table public.checkins enable row level security;
+alter table public.records  enable row level security;
+alter table public.chat_contact enable row level security;
+alter table public.letters  enable row level security;
+alter table public.cases    enable row level security;
+alter table public.episodes enable row level security;
+alter table public.capsules enable row level security;
+alter table public.posts    enable row level security;
+alter table public.cheers   enable row level security;
+alter table public.comments enable row level security;
+alter table public.reports  enable row level security;
+alter table public.blocks   enable row level security;
+
+-- profiles：登录的人看得到昵称；只能改自己的
+drop policy if exists profiles_read on public.profiles;
+create policy profiles_read on public.profiles for select to authenticated using (true);
+drop policy if exists profiles_update on public.profiles;
+create policy profiles_update on public.profiles for update to authenticated
+  using (id = (select auth.uid())) with check (id = (select auth.uid()));
+
+-- 私人表：只有自己
+drop policy if exists moods_own on public.moods;
+create policy moods_own on public.moods for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+drop policy if exists checkins_own on public.checkins;
+create policy checkins_own on public.checkins for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+drop policy if exists records_own on public.records;
+create policy records_own on public.records for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+drop policy if exists chat_contact_own on public.chat_contact;
+create policy chat_contact_own on public.chat_contact for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+drop policy if exists letters_own on public.letters;
+create policy letters_own on public.letters for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+drop policy if exists episodes_own on public.episodes;
+create policy episodes_own on public.episodes for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+drop policy if exists capsules_own on public.capsules;
+create policy capsules_own on public.capsules for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+drop policy if exists cases_own on public.cases;
+create policy cases_own on public.cases for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- posts：公开且没被隐藏、且不是我屏蔽的人 → 大家可看；自己的永远可看
+drop policy if exists posts_read on public.posts;
+create policy posts_read on public.posts for select to authenticated using (
+  user_id = (select auth.uid())
+  or (is_public and not hidden and not exists (
+        select 1 from public.blocks b where b.blocker = (select auth.uid()) and b.blocked = posts.user_id))
+);
+drop policy if exists posts_insert on public.posts;
+create policy posts_insert on public.posts for insert to authenticated
+  with check (user_id = (select auth.uid()) and hidden = false);
+drop policy if exists posts_update on public.posts;
+create policy posts_update on public.posts for update to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()) and hidden = false);
+drop policy if exists posts_delete on public.posts;
+create policy posts_delete on public.posts for delete to authenticated
+  using (user_id = (select auth.uid()));
+
+-- cheers（夸夸）
+drop policy if exists cheers_read on public.cheers;
+create policy cheers_read on public.cheers for select to authenticated
+  using (exists (select 1 from public.posts p where p.id = cheers.post_id));
+drop policy if exists cheers_insert on public.cheers;
+create policy cheers_insert on public.cheers for insert to authenticated
+  with check (user_id = (select auth.uid()) and exists (select 1 from public.posts p where p.id = cheers.post_id));
+drop policy if exists cheers_delete on public.cheers;
+create policy cheers_delete on public.cheers for delete to authenticated
+  using (user_id = (select auth.uid()));
+
+-- comments（留言）
+drop policy if exists comments_read on public.comments;
+create policy comments_read on public.comments for select to authenticated using (
+  exists (select 1 from public.posts p where p.id = comments.post_id)
+  and (user_id = (select auth.uid()) or (not hidden and not exists (
+        select 1 from public.blocks b where b.blocker = (select auth.uid()) and b.blocked = comments.user_id)))
+);
+drop policy if exists comments_insert on public.comments;
+create policy comments_insert on public.comments for insert to authenticated
+  with check (user_id = (select auth.uid()) and hidden = false
+    and exists (select 1 from public.posts p where p.id = comments.post_id));
+drop policy if exists comments_delete on public.comments;
+create policy comments_delete on public.comments for delete to authenticated using (
+  user_id = (select auth.uid())
+  or exists (select 1 from public.posts p where p.id = comments.post_id and p.user_id = (select auth.uid()))
+);
+
+-- reports：只能新增，看不到别人的举报
+drop policy if exists reports_insert on public.reports;
+create policy reports_insert on public.reports for insert to authenticated
+  with check (reporter = (select auth.uid()));
+
+-- blocks：只管自己的屏蔽名单
+drop policy if exists blocks_own on public.blocks;
+create policy blocks_own on public.blocks for all to authenticated
+  using (blocker = (select auth.uid())) with check (blocker = (select auth.uid()));
+
+-- ============================================================
+-- 照片存储：私密 bucket，路径 = 用户id/文件名
+-- 自己的照片自己看；公开夸夸圈帖子里的照片，大家都能看
+-- ============================================================
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (&#x27;photos&#x27;, &#x27;photos&#x27;, false, 5242880, array[&#x27;image/jpeg&#x27;,&#x27;image/png&#x27;,&#x27;image/webp&#x27;])
+on conflict (id) do update set public = false, file_size_limit = 5242880,
+  allowed_mime_types = array[&#x27;image/jpeg&#x27;,&#x27;image/png&#x27;,&#x27;image/webp&#x27;];
+
+drop policy if exists photos_insert_own on storage.objects;
+create policy photos_insert_own on storage.objects for insert to authenticated
+  with check (bucket_id = &#x27;photos&#x27; and (storage.foldername(name))[1] = (select auth.uid())::text);
+drop policy if exists photos_delete_own on storage.objects;
+create policy photos_delete_own on storage.objects for delete to authenticated
+  using (bucket_id = &#x27;photos&#x27; and (storage.foldername(name))[1] = (select auth.uid())::text);
+drop policy if exists photos_read on storage.objects;
+create policy photos_read on storage.objects for select to authenticated using (
+  bucket_id = &#x27;photos&#x27; and (
+    (storage.foldername(name))[1] = (select auth.uid())::text
+    or exists (select 1 from public.posts p where p.is_public and not p.hidden and name = any (p.images))
+  )
+);
+</textarea>
+<script>document.getElementById('c').onclick=async()=>{const t=document.getElementById('t');try{await navigator.clipboard.writeText(t.value)}catch(e){t.select();document.execCommand('copy')}document.getElementById('m').textContent='✅ 已复制，去 Supabase 贴上吧';};</script>
+</body></html>
