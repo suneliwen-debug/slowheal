@@ -420,6 +420,12 @@ svg.chart{width:100%;height:auto;display:block}
 @media (prefers-reduced-motion: reduce){.cat-body,.cat-tail{animation:none}.cat-bubble{animation-duration:.01s}}
 .cat-stage.sad .cat-hint{margin-top:18px}
 
+.google-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#2F2B3D;border:1px solid var(--line);box-shadow:0 2px 8px rgba(60,40,90,.06)}
+.google-btn svg{width:20px;height:20px}
+.google-note{font-size:12px;margin:6px 0 4px}
+.or-line{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:6px 0}
+.or-line::before,.or-line::after{content:"";flex:1;height:1px;background:var(--line)}
+
 </style>
 </head>
 <body>
@@ -435,6 +441,9 @@ svg.chart{width:100%;height:auto;display:block}
       <button type="button" data-auth="login" aria-selected="true">登录</button>
       <button type="button" data-auth="signup" aria-selected="false">注册</button>
     </div>
+    <button class="btn google-btn" id="aGoogle" type="button"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.5 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.8-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.9l-7.8 6.1C6.6 42.6 14.6 48 24 48z"/></svg>用 Google 账号登录</button>
+    <p class="hint center google-note">登录即表示你已满 18 岁，并同意<a href="privacy.html" target="_blank" rel="noopener">隐私政策与使用条款</a>。<br>你的资料会跟着账号走，换手机、用电脑都看得到。</p>
+    <div class="or-line"><span>或者用邮箱</span></div>
     <form id="authForm" class="stack" novalidate>
       <input type="email" id="aEmail" placeholder="邮箱" autocomplete="email" required>
       <input type="password" id="aPass" placeholder="密码（至少 6 位）" autocomplete="current-password" required minlength="6">
@@ -887,7 +896,9 @@ svg.chart{width:100%;height:auto;display:block}
     var r = iw / sw, phone = Math.min(screen.width, screen.height) <= 820;
     document.documentElement.style.zoom = (phone && r > 1.25) ? String(Math.min(r, 4)) : '';
   }
-  fit(); window.addEventListener('resize', fit); window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
+  fit(); window.addEventListener('resize', fit);
+  // 请浏览器把资料标记为「重要」，空间不够时也不要自动清掉
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => { if (!p) navigator.storage.persist(); }); } catch (e) {} window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
 })();
 (function () {
   'use strict';
@@ -1052,6 +1063,12 @@ svg.chart{width:100%;height:auto;display:block}
       }
     } finally { $('aSubmit').disabled = false; }
   });
+  if ($('aGoogle')) $('aGoogle').onclick = async () => {
+    if (!sb) return authMsg('App 还没连上后台');
+    $('aGoogle').disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+    if (error) { $('aGoogle').disabled = false; authMsg(/provider/i.test(error.message) ? 'Google 登录还没开通，请先用邮箱注册' : authErr(error)); }
+  };
   $('aForgot').onclick = async () => {
     const email = $('aEmail').value.trim();
     if (!/^\S+@\S+\.\S+$/.test(email)) return authMsg('先在上面填你的邮箱');

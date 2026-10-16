@@ -7,7 +7,9 @@
     var r = iw / sw, phone = Math.min(screen.width, screen.height) <= 820;
     document.documentElement.style.zoom = (phone && r > 1.25) ? String(Math.min(r, 4)) : '';
   }
-  fit(); window.addEventListener('resize', fit); window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
+  fit(); window.addEventListener('resize', fit);
+  // 请浏览器把资料标记为「重要」，空间不够时也不要自动清掉
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => { if (!p) navigator.storage.persist(); }); } catch (e) {} window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
 })();
 (function () {
   'use strict';
