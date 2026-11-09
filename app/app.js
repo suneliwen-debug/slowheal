@@ -1329,7 +1329,7 @@
       '<p class="cap-when" id="capWhen"></p>' +
       '<p class="hint">封存以后，到时间之前不能看、也不能改。时间一到，App 会跳出卡片提醒你。</p><button class="btn" id="capSave" type="button">封存</button>', () => {
       const wn = $('wNum'), wu = $('wUnit');
-      const upd = () => { $('capWhen').textContent = '将在 ' + ymdhm(unlockFrom(wheelGet(wn) + 1, wheelGet(wu))) + ' 打开'; [wn, wu].forEach(w => { const k = wheelGet(w); [...w.children].forEach((c, i) => c.classList.toggle('on', i === k)); }); };
+      const upd = () => { if (!$('capWhen')) return; $('capWhen').textContent = '将在 ' + ymdhm(unlockFrom(wheelGet(wn) + 1, wheelGet(wu))) + ' 打开'; [wn, wu].forEach(w => { const k = wheelGet(w); [...w.children].forEach((c, i) => c.classList.toggle('on', i === k)); }); };
       let tm; [wn, wu].forEach(w => { w.addEventListener('scroll', () => { clearTimeout(tm); tm = setTimeout(upd, 60); }); w.addEventListener('keydown', e => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); wheelSet(w, wheelGet(w) + (e.key === 'ArrowDown' ? 1 : -1), true); } });
         w.addEventListener('click', e => { const it = e.target.closest('.wheel-item'); if (it) wheelSet(w, +it.dataset.i, true); }); });
       requestAnimationFrame(() => { wheelSet(wn, 0); wheelSet(wu, 3); upd(); });
